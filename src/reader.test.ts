@@ -1,6 +1,7 @@
 // `orca plugin test .` runs this in Node. The sample logs in test-data/ copy each client's record
 // shapes with invented numbers and a marker in place of message text.
 import { assert, test } from 'orca/testing'
+import { execFileSync } from 'node:child_process'
 import { appendFileSync, chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -115,4 +116,40 @@ test('live mode shows each sidebar agent once, from its main session, never a su
     ['codex', 'no-logs-yet', 'no-logs-yet', null]
   ], 'a live agent without a log yet still has its row')
   assert.deepEqual((await readLive({ roots, agents: [] })).sessions, [], 'no live agent, no row')
+})
+
+test('a Hermes pane reads its own session: newest in its worktree, count since the last compaction', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'context-meter-hermes-'))
+  const db = join(dir, 'state.db')
+  const now = Math.floor(Date.now() / 1000)
+  const block = (char: string, size: number) => char.repeat(size)
+  execFileSync('sqlite3', [
+    db,
+    `create table sessions (id text primary key, source text, model text, cwd text, git_branch text, title text,
+       last_activity_at real, parent_session_id text, archived integer default 0);
+     create table messages (id integer primary key, session_id text, role text, content text,
+       _compressed_summary integer default 0);
+     insert into sessions values
+       ('h-main', 'local', 'model-x', '/work/app', 'feat/1', 'Refactor the checkout', ${now - 100}, null, 0),
+       ('h-cron', 'cron', 'model-x', '/work/app', null, 'Nightly digest', ${now}, null, 0),
+       ('h-sub', 'subagent', 'model-x', '/work/app', null, 'Subagent: hidden', ${now}, 'h-main', 0);
+     insert into messages (id, session_id, role, content, _compressed_summary) values
+       (1, 'h-main', 'user', '${block('x', 4000)}', 0),
+       (2, 'h-main', 'assistant', '${block('y', 4000)}', 0),
+       (3, 'h-main', 'user', '${block('z', 4000)}', 1),
+       (4, 'h-main', 'user', '${block('w', 2000)}', 0);`
+  ])
+  const answer = await readLive({
+    roots: { ...samples(), hermes: db },
+    agents: [
+      { client: 'hermes', path: '/work/app', name: 'app' },
+      { client: 'hermes', path: '/work/elsewhere', name: 'elsewhere' }
+    ]
+  })
+  const by = Object.fromEntries(answer.sessions.map((s) => [s.name, s]))
+  assert.deepEqual(Object.keys(by).sort(), ['Refactor the checkout', 'elsewhere'], 'a subagent and a cron own no pane')
+  // The estimate counts from the last compaction (ids 3 and 4), not the whole session.
+  assert.deepEqual(by['Refactor the checkout'].context, { current: 1500, peak: 1500, window: null, source: 'estimate' })
+  assert.deepEqual([by['Refactor the checkout'].sessionId, by['Refactor the checkout'].compactions.count], ['h-main', 1])
+  assert.deepEqual([by.elsewhere.context.current, by.elsewhere.compactions.count], [null, 0])
 })

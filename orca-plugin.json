@@ -4,7 +4,7 @@
   "id": "context-meter",
   "name": "Medidor de contexto",
   "version": "0.1.0",
-  "description": "Cuánto contexto lleva cada agente de programación: cada agente activo de Claude Code y Codex en la barra lateral de Orca, en esta máquina y en tus Orcas emparejadas, con el contexto más lleno primero y sus compactaciones. Sin configuración.",
+  "description": "Cuánto contexto lleva cada agente de programación: cada agente activo de Claude Code, Codex y Hermes en la barra lateral de Orca, en esta máquina y en tus Orcas emparejadas, con el contexto más lleno primero y sus compactaciones. En Hermes el tamaño es una estimación a partir de la conversación. Sin configuración.",
   "license": "MIT",
   "author": {
     "name": "Ellebam",
