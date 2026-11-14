@@ -347,13 +347,11 @@ async function hermesStore(dbPath, sinceSeconds) {
   if (!dbPath || !existsSync(dbPath)) return []
   const since = Math.floor(Date.now() / 1000) - sinceSeconds
   const sql = [
-    'select id, source, model, cwd, git_branch, title, last_activity_at,',
+    'select id, source, parent_session_id, model, cwd, git_branch, title, last_activity_at,',
     "  (select sum(length(coalesce(content, ''))) from messages m where m.session_id = s.id",
     '    and m.id >= coalesce((select max(id) from messages where session_id = s.id and _compressed_summary = 1), 0)) as chars,',
     '  (select count(*) from messages m where m.session_id = s.id and m._compressed_summary = 1) as compactions',
-    `from sessions s where s.last_activity_at >= ${since}`,
-    // A subagent runs inside a main session and is not an agent of its own: its parent's row covers it.
-    "  and coalesce(s.parent_session_id, '') = '' and s.source <> 'subagent' and s.archived = 0",
+    `from sessions s where s.last_activity_at >= ${since} and s.archived = 0`,
     `order by s.last_activity_at desc limit ${HERMES_ROWS}`
   ].join('\n')
   const { code, stdout } = await run('sqlite3', ['-readonly', '-json', dbPath, sql], { deadlineMs: ORCA_DEADLINE_MS })
@@ -384,26 +382,36 @@ function hermesSession(row, name, cachePath) {
   }
 }
 
-/** One row per Hermes pane: the newest session inside that worktree, so no two panes share one. */
 // A cron or a chat adapter owns no pane, so only an interactive session can be a pane's own.
 const INTERACTIVE = new Set(['local', 'cli', 'tui', 'desktop', 'gui', 'oneshot'])
 
-export async function hermesRows(agents, dbPath, { sinceSeconds = HERMES_SINCE_SECONDS } = {}) {
+/**
+ * One row per Hermes pane: the newest session inside that worktree, taken, so no two panes share one.
+ * A subagent runs inside a main session and a cron owns no pane: neither is an agent of the sidebar.
+ */
+export function hermesSessions(rows, agents, cachePath) {
   const panes = agents.filter((agent) => agent.client === 'hermes')
   if (panes.length === 0) return []
-  const stored = await hermesStore(dbPath, sinceSeconds)
-  if (stored.length === 0) return unmeasured(panes)
-  const rows = stored.some((row) => INTERACTIVE.has(row.source))
-    ? stored.filter((row) => INTERACTIVE.has(row.source))
-    : stored
-  const cachePath = dbPath ? join(dirname(dbPath), 'models_dev_cache.json') : null
+  const own = rows.filter((row) => !row.parent_session_id && row.source !== 'subagent')
+  const usable = own.some((row) => INTERACTIVE.has(row.source)) ? own.filter((row) => INTERACTIVE.has(row.source)) : own
+  if (usable.length === 0) return unmeasured(panes)
   const taken = new Set()
   return panes.map(({ path, name }) => {
-    const row = rows.find((candidate) => !taken.has(candidate.id) && inside(candidate.cwd, path))
+    const row = usable.find((candidate) => !taken.has(candidate.id) && inside(candidate.cwd, path))
     if (!row) return unmeasured([{ client: 'hermes', path, name }])[0]
     taken.add(row.id)
     return hermesSession(row, name, cachePath)
   })
+}
+
+/** The same rows for the panes Orca lists, read from the store this machine keeps. */
+export async function hermesRows(agents, dbPath, { sinceSeconds = HERMES_SINCE_SECONDS } = {}) {
+  const panes = agents.filter((agent) => agent.client === 'hermes')
+  if (panes.length === 0) return []
+  const rows = await hermesStore(dbPath, sinceSeconds)
+  if (rows.length === 0) return unmeasured(panes)
+  const cachePath = dbPath ? join(dirname(dbPath), 'models_dev_cache.json') : null
+  return hermesSessions(rows, panes, cachePath)
 }
 
 /** The first record of a log, which names its folder and whether it is a subagent. Never changes. */

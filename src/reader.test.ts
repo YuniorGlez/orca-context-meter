@@ -1,12 +1,11 @@
 // `orca plugin test .` runs this in Node. The sample logs in test-data/ copy each client's record
 // shapes with invented numbers and a marker in place of message text.
 import { assert, test } from 'orca/testing'
-import { execFileSync } from 'node:child_process'
 import { appendFileSync, chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { agentsFrom, readLive, readRemote, readSessions, unmeasured } from './reader.mjs'
+import { agentsFrom, hermesSessions, readLive, readRemote, readSessions, unmeasured } from './reader.mjs'
 
 const SAMPLES = fileURLToPath(new URL('../test-data', import.meta.url))
 const NEVER = 'MESSAGE-TEXT-NEVER-OUTPUT'
@@ -118,38 +117,35 @@ test('live mode shows each sidebar agent once, from its main session, never a su
   assert.deepEqual((await readLive({ roots, agents: [] })).sessions, [], 'no live agent, no row')
 })
 
-test('a Hermes pane reads its own session: newest in its worktree, count since the last compaction', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'context-meter-hermes-'))
-  const db = join(dir, 'state.db')
-  const now = Math.floor(Date.now() / 1000)
-  const block = (char: string, size: number) => char.repeat(size)
-  execFileSync('sqlite3', [
-    db,
-    `create table sessions (id text primary key, source text, model text, cwd text, git_branch text, title text,
-       last_activity_at real, parent_session_id text, archived integer default 0);
-     create table messages (id integer primary key, session_id text, role text, content text,
-       _compressed_summary integer default 0);
-     insert into sessions values
-       ('h-main', 'local', 'model-x', '/work/app', 'feat/1', 'Refactor the checkout', ${now - 100}, null, 0),
-       ('h-cron', 'cron', 'model-x', '/work/app', null, 'Nightly digest', ${now}, null, 0),
-       ('h-sub', 'subagent', 'model-x', '/work/app', null, 'Subagent: hidden', ${now}, 'h-main', 0);
-     insert into messages (id, session_id, role, content, _compressed_summary) values
-       (1, 'h-main', 'user', '${block('x', 4000)}', 0),
-       (2, 'h-main', 'assistant', '${block('y', 4000)}', 0),
-       (3, 'h-main', 'user', '${block('z', 4000)}', 1),
-       (4, 'h-main', 'user', '${block('w', 2000)}', 0);`
-  ])
-  const answer = await readLive({
-    roots: { ...samples(), hermes: db },
-    agents: [
-      { client: 'hermes', path: '/work/app', name: 'app' },
-      { client: 'hermes', path: '/work/elsewhere', name: 'elsewhere' }
-    ]
+test('a Hermes pane takes the newest session in its worktree, never a subagent or a cron', () => {
+  const row = (id: string, source: string, minutesAgo: number, extra = {}) => ({
+    id,
+    source,
+    cwd: '/work/app',
+    git_branch: null,
+    title: id,
+    last_activity_at: 1000 - minutesAgo * 60,
+    chars: 4000,
+    compactions: 0,
+    ...extra
   })
-  const by = Object.fromEntries(answer.sessions.map((s) => [s.name, s]))
-  assert.deepEqual(Object.keys(by).sort(), ['Refactor the checkout', 'elsewhere'], 'a subagent and a cron own no pane')
-  // The estimate counts from the last compaction (ids 3 and 4), not the whole session.
-  assert.deepEqual(by['Refactor the checkout'].context, { current: 1500, peak: 1500, window: null, source: 'estimate' })
-  assert.deepEqual([by['Refactor the checkout'].sessionId, by['Refactor the checkout'].compactions.count], ['h-main', 1])
-  assert.deepEqual([by.elsewhere.context.current, by.elsewhere.compactions.count], [null, 0])
+  const rows = [
+    row('h-cron', 'cron', 0),
+    row('h-sub', 'subagent', 1, { parent_session_id: 'h-main' }),
+    row('h-main', 'local', 2, { git_branch: 'feat/1', title: 'Refactor the checkout', chars: 6000, compactions: 1 }),
+    row('h-second', 'local', 3, { title: 'Second pane' })
+  ]
+  const panes = [
+    { client: 'hermes', path: '/work/app', name: 'app' },
+    { client: 'hermes', path: '/work/app', name: 'app' },
+    { client: 'hermes', path: '/work/elsewhere', name: 'elsewhere' }
+  ]
+  const sessions = hermesSessions(rows, panes, null)
+  assert.deepEqual(sessions.map((s) => s.name), ['Refactor the checkout', 'Second pane', 'elsewhere'])
+  assert.deepEqual(sessions.map((s) => s.sessionId), ['h-main', 'h-second', 'elsewhere'])
+  // About four characters per token, counted from the last compaction, and flagged as an estimate.
+  assert.deepEqual(sessions[0].context, { current: 1500, peak: 1500, window: null, source: 'estimate' })
+  assert.deepEqual([sessions[0].branch, sessions[0].compactions.count], ['feat/1', 1])
+  assert.deepEqual([sessions[2].context.current, sessions[2].compactions.count], [null, 0])
+  assert.deepEqual(hermesSessions(rows, [], null), [], 'no pane, no row')
 })
