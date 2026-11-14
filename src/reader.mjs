@@ -298,22 +298,42 @@ export function unmeasured(agents) {
 
 /** The published window of a model id, from Hermes' own models.dev cache; null when it carries none. */
 const windows = new Map()
+const catalogs = new Map()
+
+/** The id without the aggregator prefix or the routing suffix: neither is part of the model's name. */
+function plainModel(model) {
+  return model.toLowerCase().split('/').pop().replace(/:[a-z0-9-]+$/, '')
+}
+
+function modelsCache(cachePath) {
+  if (catalogs.has(cachePath)) return catalogs.get(cachePath)
+  let models = []
+  try {
+    const cache = JSON.parse(readFileSync(cachePath, 'utf8'))
+    models = Object.values(cache ?? {}).flatMap((provider) => Object.entries(provider?.models ?? {}))
+  } catch {
+    models = []
+  }
+  catalogs.set(cachePath, models)
+  return models
+}
 
 function publishedWindow(model, cachePath) {
   if (!model || !cachePath) return null
   if (windows.has(model)) return windows.get(model)
-  let window = null
-  try {
-    const cache = JSON.parse(readFileSync(cachePath, 'utf8'))
-    for (const provider of Object.values(cache ?? {})) {
-      const found = provider?.models?.[model]?.limit?.context
-      if (Number.isFinite(found)) {
-        window = found
-        break
-      }
+  const models = modelsCache(cachePath)
+  const exact = models.find(([id, entry]) => id === model && Number.isFinite(entry?.limit?.context))
+  let window = exact ? exact[1].limit.context : null
+  if (window === null) {
+    // Providers publish the same model under a prefix or a suffix and disagree on the number:
+    // the value most of them carry is the safest of the published ones.
+    const wanted = plainModel(model)
+    const counts = new Map()
+    for (const [id, entry] of models) {
+      const found = entry?.limit?.context
+      if (Number.isFinite(found) && plainModel(id) === wanted) counts.set(found, (counts.get(found) ?? 0) + 1)
     }
-  } catch {
-    window = null
+    window = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
   }
   windows.set(model, window)
   return window
