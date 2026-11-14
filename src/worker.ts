@@ -47,7 +47,7 @@ function rankingOf(rows: { host: string; s: Parameters<typeof share>[0] }[]): st
 export function statusOf(answer: Answer) {
   const rows = answer.hosts.flatMap((h) => h.sessions.map((s) => ({ host: h.host, s })))
   rows.sort((a, b) => fullestFirst(a.s, b.s))
-  if (rows.length === 0) return [{ text: 'No agents', tone: 'neutral', tooltip: 'Context Meter: no live agents', visible: true }]
+  if (rows.length === 0) return [{ text: 'Sin agentes', tone: 'neutral', tooltip: 'Medidor de contexto: sin agentes activos', visible: true }]
   const tooltip = rankingOf(rows)
   return rows.slice(0, STATUS_ITEMS).map(({ s }) => {
     const fraction = share(s)

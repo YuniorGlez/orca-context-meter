@@ -2,9 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/stablyai/orca/main/docs/schemas/plugins/orca-plugin.v2.schema.json",
   "manifestVersion": 2,
   "id": "context-meter",
-  "name": "Context Meter",
+  "name": "Medidor de contexto",
   "version": "0.1.0",
-  "description": "How full each coding agent's context is: every live Claude Code and Codex agent in Orca's sidebar, on this machine and your paired Orcas, fullest first, with its compactions. No setup.",
+  "description": "Cuánto contexto lleva cada agente de programación: cada agente activo de Claude Code y Codex en la barra lateral de Orca, en esta máquina y en tus Orcas emparejadas, con el contexto más lleno primero y sus compactaciones. Sin configuración.",
   "license": "MIT",
   "author": {
     "name": "Ellebam",
@@ -14,7 +14,7 @@
   "icon": "images/icon.png",
   "cover": {
     "path": "images/cover.png",
-    "alt": "The Context Meter panel: six agents, fullest context first, with each tool's logo, its context share and its compactions."
+    "alt": "El panel Medidor de contexto: seis agentes, con el contexto más lleno primero, con el logo de cada herramienta, su porcentaje de contexto y sus compactaciones."
   },
   "engines": {
     "orca": ">=1.4.248"
@@ -26,7 +26,7 @@
     "panels": [
       {
         "id": "context-meter",
-        "title": "Context Meter",
+        "title": "Medidor de contexto",
         "icon": "gauge",
         "entry": "src/panel.tsx",
         "ui": "components"
@@ -35,31 +35,31 @@
     "commands": [
       {
         "id": "toggle-sidebar",
-        "title": "Context Meter: Show or hide the right sidebar",
+        "title": "Medidor de contexto: mostrar u ocultar la barra lateral derecha",
         "action": "sidebar.right.toggle"
       }
     ],
     "statusBarItems": [
       {
         "id": "agent-1",
-        "text": "Fullest agent",
+        "text": "Agente con más contexto",
         "icon": "gauge",
-        "tooltip": "Context Meter: fullest agent",
+        "tooltip": "Medidor de contexto: agente con más contexto",
         "command": "toggle-sidebar"
       },
       {
         "id": "agent-2",
         "icon": "gauge",
-        "tooltip": "Context Meter: second fullest agent",
+        "tooltip": "Medidor de contexto: segundo agente con más contexto",
         "command": "toggle-sidebar",
-        "text": "Second fullest agent"
+        "text": "Segundo agente con más contexto"
       },
       {
         "id": "agent-3",
         "icon": "gauge",
-        "tooltip": "Context Meter: third fullest agent",
+        "tooltip": "Medidor de contexto: tercer agente con más contexto",
         "command": "toggle-sidebar",
-        "text": "Third fullest agent"
+        "text": "Tercer agente con más contexto"
       }
     ]
   },

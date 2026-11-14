@@ -382,7 +382,7 @@ function unavailable(host, reason) {
  * configuration decides how `host` is reached.
  */
 export async function readRemote(host, { sinceSeconds = DAY_SECONDS, sshConfig = '', live = false } = {}) {
-  if (!HOST.test(host)) return unavailable(host, 'not a host name')
+  if (!HOST.test(host)) return unavailable(host, 'no es un nombre de host')
   const source = await readFile(fileURLToPath(import.meta.url))
   const mode = live ? '--live' : `--since ${Math.floor(sinceSeconds)}`
   const command = `node --input-type=module - --json ${mode}`
@@ -390,15 +390,15 @@ export async function readRemote(host, { sinceSeconds = DAY_SECONDS, sshConfig =
   const remote = ['/bin/zsh', '-lc', command].map((part) => `'${part.replace(/'/g, `'\\''`)}'`).join(' ')
   const args = [...(sshConfig ? ['-F', expandHome(sshConfig)] : []), ...options, '--', host, remote]
   const { code, stdout } = await run('ssh', args, { input: source, deadlineMs: SSH_DEADLINE_MS })
-  if (code !== 0) return unavailable(host, code === null ? 'ssh did not finish' : `ssh exit ${code}`)
+  if (code !== 0) return unavailable(host, code === null ? 'ssh no terminó' : `ssh terminó con código ${code}`)
   try {
     const answer = JSON.parse(stdout)
     if (answer?.schema !== SCHEMA || !Array.isArray(answer.sessions)) {
-      return unavailable(host, 'unexpected reader output')
+      return unavailable(host, 'salida inesperada del lector')
     }
     return { ...answer, host, available: true }
   } catch {
-    return unavailable(host, 'unreadable reader output')
+    return unavailable(host, 'salida del lector ilegible')
   }
 }
 

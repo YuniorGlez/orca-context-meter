@@ -52,14 +52,14 @@ test('a refresh reads appended records once', async () => {
 
 test('a remote host must be a plain name, and an unreachable one is unavailable, never empty', async () => {
   assert.deepEqual(await readRemote('-oProxyCommand=x'), {
-    schema: 1, host: '-oProxyCommand=x', available: false, reason: 'not a host name', sessions: []
+    schema: 1, host: '-oProxyCommand=x', available: false, reason: 'no es un nombre de host', sessions: []
   })
   const dir = mkdtempSync(join(tmpdir(), 'context-meter-ssh-'))
   const sshConfig = join(dir, 'ssh.conf')
   writeFileSync(sshConfig, 'Host closed-port\n  HostName 127.0.0.1\n  Port 9\n')
   chmodSync(sshConfig, 0o600)
   const closed = await readRemote('closed-port', { sshConfig })
-  assert.deepEqual([closed.available, closed.reason, closed.sessions], [false, 'ssh exit 255', []])
+  assert.deepEqual([closed.available, closed.reason, closed.sessions], [false, 'ssh terminó con código 255', []])
 })
 
 test("Claude Code's window follows Orca's rule: [1m] or a bare first-party name is 1M, a gateway 200k", async () => {

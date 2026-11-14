@@ -72,9 +72,9 @@ export default function Panel() {
   return (
     <Stack gap="sm">
       <Row justify="between">
-        <Heading>Context Meter</Heading>
+        <Heading>Medidor de contexto</Heading>
         <Button variant="ghost" onPress={refresh}>
-          Refresh
+          Actualizar
         </Button>
       </Row>
       {error ? <Text tone="danger">{error}</Text> : null}
@@ -83,23 +83,23 @@ export default function Panel() {
         .map((host) => (
           <Text tone="warning" size="sm">
             {!host.available
-              ? `${host.host}: unavailable, ${host.reason}`
+              ? `${host.host}: no disponible, ${host.reason}`
               : host.figures === false
-                ? `${host.host}: figures need SSH to ${host.host} (${host.reason})`
+                ? `${host.host}: los datos necesitan SSH a ${host.host} (${host.reason})`
               : host.live === false
-                ? `${host.host}: Orca's live agents unknown, showing the last 24 hours`
-                : `${host.host}: incomplete scan`}
+                ? `${host.host}: agentes activos de Orca desconocidos, se muestran las últimas 24 horas`
+                : `${host.host}: escaneo incompleto`}
           </Text>
         ))}
       <Line
         logo={<Box width={LOGO_SIZE} shrink={false} />}
-        name={<Text size="xs" muted>AGENT</Text>}
-        context={<Text size="xs" muted>CONTEXT</Text>}
+        name={<Text size="xs" muted>AGENTE</Text>}
+        context={<Text size="xs" muted>CONTEXTO</Text>}
         compactions={<Text size="xs" muted>COMP.</Text>}
       />
       <Separator />
-      {value === null && error === null ? <Text muted>Reading sessions…</Text> : null}
-      {value !== null && rows.length === 0 ? <Text muted>No live agents</Text> : null}
+      {value === null && error === null ? <Text muted>Leyendo sesiones…</Text> : null}
+      {value !== null && rows.length === 0 ? <Text muted>Sin agentes activos</Text> : null}
       {rows.map(({ host, s }) => (
         <Line
           logo={

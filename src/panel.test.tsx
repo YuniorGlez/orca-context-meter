@@ -31,7 +31,7 @@ test('lists the fullest context first, more compactions first on a tie, with eac
             ]
           },
           { host: 'remote-a', available: true, complete: true, sessions: [session('codex', 'full-9', 90000, 100000, 0)] },
-          { host: 'remote-b', available: false, reason: 'ssh exit 255', sessions: [] }
+          { host: 'remote-b', available: false, reason: 'ssh terminó con código 255', sessions: [] }
         ]
       })
     }
@@ -47,7 +47,7 @@ test('lists the fullest context first, more compactions first on a tie, with eac
     assert.ok(drawn.includes('remote-a'), 'a remote row names its host')
     assert.equal(view.findAll({ type: 'Image' }).length, 4, 'one logo per row')
     assert.ok(drawn.includes('"alt":"Claude Code"') && drawn.includes('"alt":"Codex"'))
-    assert.ok(view.summary().some((line) => line.includes('remote-b: unavailable, ssh exit 255')))
+    assert.ok(view.summary().some((line) => line.includes('remote-b: no disponible, ssh terminó con código 255')))
     assert.deepEqual(view.errors, [])
     assert.deepEqual(view.warnings, [])
     assert.deepEqual(view.refusals, [])

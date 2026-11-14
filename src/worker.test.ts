@@ -37,5 +37,5 @@ test('the status bar shows the three fullest agents, each yellow from 70% and re
   const many = { hosts: [{ host: 'local', sessions: Array.from({ length: 30 }, (_, i) => session(`agent-${i}-long-workspace-name`, 10000 * (i + 1), 1000000, i)) }] }
   assert.ok(statusOf(many)[0].tooltip.length <= 256, 'never longer than Orca shows')
   assert.equal(statusOf({ hosts: [{ host: 'local', sessions: [session('docs', 96000, 1000000, 0)] }] }).length, 1)
-  assert.equal(statusOf({ hosts: [{ host: 'local', sessions: [] }] })[0].text, 'No agents')
+  assert.equal(statusOf({ hosts: [{ host: 'local', sessions: [] }] })[0].text, 'Sin agentes')
 })
